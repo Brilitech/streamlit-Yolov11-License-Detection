@@ -1,4 +1,4 @@
-opencv-python-headless==4.8.0.74
+opencv-python-headless==4.8.1.78
 ultralytics==8.0.196
 easyocr==1.7.0
 streamlit==1.28.1
@@ -10,4 +10,3 @@ numpy==1.24.3
 Pillow==10.1.0
 scipy==1.11.4
 matplotlib==3.7.2
-requests==2.31.0
