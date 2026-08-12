@@ -135,8 +135,8 @@ elif option == "🎥 Upload Video":
         tfile = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
         tfile.write(uploaded_video.read())
         video_path = tfile.name
+        tfile.close()  # tutup handle agar bisa dibaca oleh OpenCV
 
-        # Proses video
         with st.spinner("⏳ Memproses video, mohon tunggu..."):
             cap = cv2.VideoCapture(video_path)
             if not cap.isOpened():
@@ -146,14 +146,15 @@ elif option == "🎥 Upload Video":
                 height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
                 fps = cap.get(cv2.CAP_PROP_FPS) or 30
 
-                # Output video
+                # Output video sementara
                 out_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
-                fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+                # Gunakan codec H.264 (lebih kompatibel)
+                fourcc = cv2.VideoWriter_fourcc(*'avc1')  # atau *'mp4v' jika avc1 tidak tersedia
                 out = cv2.VideoWriter(out_path, fourcc, fps, (width, height))
 
                 frame_count = 0
-                progress_bar = st.progress(0)
                 total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or 100
+                progress_bar = st.progress(0)
 
                 while True:
                     ret, frame = cap.read()
@@ -168,46 +169,60 @@ elif option == "🎥 Upload Video":
                 out.release()
                 progress_bar.empty()
 
-                st.success("✅ Proses video selesai!")
-                st.video(out_path)
+                # Baca file output ke dalam bytes
+                with open(out_path, "rb") as f:
+                    video_bytes = f.read()
 
-                # Hapus file sementara
+                # Tampilkan video (dari bytes)
+                st.video(video_bytes)
+
+                # Tombol download
+                st.download_button(
+                    label="📥 Download Video Hasil Deteksi",
+                    data=video_bytes,
+                    file_name="hasil_deteksi.mp4",
+                    mime="video/mp4"
+                )
+
+                # Hapus file sementara setelah semua selesai
                 os.unlink(video_path)
                 os.unlink(out_path)
 
-elif option == "📹 Webcam":
-    st.subheader("Deteksi Real-time melalui Webcam")
-    st.info("Klik 'Start' untuk mengaktifkan kamera. Deteksi plat akan berjalan secara langsung.")
+                st.success("✅ Proses video selesai! Video dapat diputar dan diunduh.")
+
+#elif option == "📹 Webcam":
+#    st.subheader("Deteksi Real-time melalui Webcam")
+#    st.info("Klik 'Start' untuk mengaktifkan kamera. Deteksi plat akan berjalan secara langsung.")
 
     # Konfigurasi WebRTC dengan TURN server gratis
-    rtc_config = {
-        "iceServers": [
-            {"urls": ["stun:stun.l.google.com:19302"]},  # STUN tetap
-            {
-                "urls": [
-                    "turn:turn.evan-brass.net",
-                    "turn:turn.evan-brass.net?transport=tcp",
-                    "turns:turn.evan-brass.net:443?transport=tcp"
-                ],
-                "username": "user",
-                "credential": "password"
-            }
-        ]
-    }
+#    rtc_config = {
+#        "iceServers": [
+#            {"urls": ["stun:stun.l.google.com:19302"]},  # STUN tetap
+#            {
+#                "urls": [
+#                    "turn:turn.evan-brass.net",
+#                    "turn:turn.evan-brass.net?transport=tcp",
+#                    "turns:turn.evan-brass.net:443?transport=tcp"
+#                ],
+#                "username": "user",
+#                "credential": "password"
+#            }
+#        ]
+#    }
 
-    class VideoTransformer(VideoTransformerBase):
-        def transform(self, frame):
-            img = frame.to_ndarray(format="bgr24")
-            annotated, _ = detect_plate(img)
-            return av.VideoFrame.from_ndarray(annotated, format="bgr24")
+#    class VideoTransformer(VideoTransformerBase):
+#        def transform(self, frame):
+#            img = frame.to_ndarray(format="bgr24")
+#            annotated, _ = detect_plate(img)
+#            return av.VideoFrame.from_ndarray(annotated, format="bgr24")
 
-    webrtc_streamer(
-        key="webcam-detection",
-        video_transformer_factory=VideoTransformer,
-        rtc_configuration=rtc_config,
-        media_stream_constraints={"video": True, "audio": False},
-        async_processing=True,
-    )
+#    webrtc_streamer(
+#        key="webcam-detection",
+#        video_transformer_factory=VideoTransformer,
+#        rtc_configuration=rtc_config,
+#        media_stream_constraints={"video": True, "audio": False},
+#        async_processing=True,
+#    )
 
 # ------------------------------
 # 6. Footer
