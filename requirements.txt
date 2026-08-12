@@ -6,3 +6,5 @@ torchvision==0.28.0
 pillow==12.3.0
 numpy==2.2.6
 easyocr==1.7.2
+streamlit-webrtc
+av
