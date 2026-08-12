@@ -131,64 +131,91 @@ elif option == "🎥 Upload Video":
     uploaded_video = st.file_uploader("Pilih file video (mp4, avi, mov)", type=["mp4", "avi", "mov"])
 
     if uploaded_video is not None:
-        # Simpan video sementara
+        # Simpan video input ke file sementara
         tfile = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
         tfile.write(uploaded_video.read())
+        tfile.close()
         video_path = tfile.name
-        tfile.close()  # tutup handle agar bisa dibaca oleh OpenCV
 
         with st.spinner("⏳ Memproses video, mohon tunggu..."):
             cap = cv2.VideoCapture(video_path)
             if not cap.isOpened():
-                st.error("Gagal membuka video.")
+                st.error("Gagal membuka video input.")
             else:
                 width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                 height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
                 fps = cap.get(cv2.CAP_PROP_FPS) or 30
 
-                # Output video sementara
-                out_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
-                # Gunakan codec H.264 (lebih kompatibel)
-                fourcc = cv2.VideoWriter_fourcc(*'avc1')  # atau *'mp4v' jika avc1 tidak tersedia
-                out = cv2.VideoWriter(out_path, fourcc, fps, (width, height))
+                # Coba beberapa kodek secara berurutan
+                codecs = [('mp4v', 'mp4'), ('avc1', 'mp4'), ('X264', 'mp4'), ('XVID', 'avi')]
+                out_path = None
+                writer = None
+                used_codec = None
 
-                frame_count = 0
-                total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or 100
-                progress_bar = st.progress(0)
+                for codec_str, ext in codecs:
+                    try:
+                        fourcc = cv2.VideoWriter_fourcc(*codec_str)
+                        temp_out = tempfile.NamedTemporaryFile(delete=False, suffix=f".{ext}").name
+                        test_writer = cv2.VideoWriter(temp_out, fourcc, fps, (width, height))
+                        if test_writer.isOpened():
+                            writer = test_writer
+                            out_path = temp_out
+                            used_codec = codec_str
+                            break
+                        else:
+                            test_writer.release()
+                            os.unlink(temp_out)
+                    except:
+                        continue
 
-                while True:
-                    ret, frame = cap.read()
-                    if not ret:
-                        break
-                    annotated, _ = detect_plate(frame)
-                    out.write(annotated)
-                    frame_count += 1
-                    progress_bar.progress(min(frame_count / total_frames, 1.0))
+                if writer is None:
+                    st.error("Tidak ada kodek video yang didukung di sistem ini. Coba instal codec H.264.")
+                else:
+                    frame_count = 0
+                    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or 100
+                    progress_bar = st.progress(0)
 
-                cap.release()
-                out.release()
-                progress_bar.empty()
+                    while True:
+                        ret, frame = cap.read()
+                        if not ret:
+                            break
+                        annotated, _ = detect_plate(frame)
+                        writer.write(annotated)
+                        frame_count += 1
+                        progress_bar.progress(min(frame_count / total_frames, 1.0))
 
-                # Baca file output ke dalam bytes
-                with open(out_path, "rb") as f:
-                    video_bytes = f.read()
+                    cap.release()
+                    writer.release()
+                    progress_bar.empty()
 
-                # Tampilkan video (dari bytes)
-                st.video(video_bytes)
+                    # Validasi ukuran file hasil
+                    file_size = os.path.getsize(out_path)
+                    if file_size < 1024:  # kurang dari 1KB
+                        st.warning("⚠️ File hasil deteksi sangat kecil, kemungkinan terjadi kesalahan penulisan.")
+                    else:
+                        st.success(f"✅ Proses selesai! Video disimpan dengan kodek {used_codec}.")
 
-                # Tombol download
-                st.download_button(
-                    label="📥 Download Video Hasil Deteksi",
-                    data=video_bytes,
-                    file_name="hasil_deteksi.mp4",
-                    mime="video/mp4"
-                )
+                    # Baca file ke bytes
+                    with open(out_path, "rb") as f:
+                        video_bytes = f.read()
 
-                # Hapus file sementara setelah semua selesai
-                os.unlink(video_path)
-                os.unlink(out_path)
+                    # Tampilkan video (jika browser support)
+                    try:
+                        st.video(video_bytes)
+                    except Exception as e:
+                        st.warning(f"Browser tidak dapat memutar video ini, tetapi Anda tetap bisa mengunduhnya. Error: {e}")
 
-                st.success("✅ Proses video selesai! Video dapat diputar dan diunduh.")
+                    # Tombol download
+                    st.download_button(
+                        label="📥 Download Video Hasil Deteksi",
+                        data=video_bytes,
+                        file_name="hasil_deteksi.mp4",
+                        mime="video/mp4"
+                    )
+
+                    # Hapus semua file sementara
+                    os.unlink(video_path)
+                    os.unlink(out_path)
 
 #elif option == "📹 Webcam":
 #    st.subheader("Deteksi Real-time melalui Webcam")
