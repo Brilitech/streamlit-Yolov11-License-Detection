@@ -179,7 +179,22 @@ elif option == "📹 Webcam":
     st.subheader("Deteksi Real-time melalui Webcam")
     st.info("Klik 'Start' untuk mengaktifkan kamera. Deteksi plat akan berjalan secara langsung.")
 
-    # Konfigurasi WebRTC
+    # Konfigurasi WebRTC dengan TURN server gratis
+    rtc_config = {
+        "iceServers": [
+            {"urls": ["stun:stun.l.google.com:19302"]},  # STUN tetap
+            {
+                "urls": [
+                    "turn:turn.evan-brass.net",
+                    "turn:turn.evan-brass.net?transport=tcp",
+                    "turns:turn.evan-brass.net:443?transport=tcp"
+                ],
+                "username": "user",
+                "credential": "password"
+            }
+        ]
+    }
+
     class VideoTransformer(VideoTransformerBase):
         def transform(self, frame):
             img = frame.to_ndarray(format="bgr24")
@@ -189,9 +204,7 @@ elif option == "📹 Webcam":
     webrtc_streamer(
         key="webcam-detection",
         video_transformer_factory=VideoTransformer,
-        rtc_configuration=RTCConfiguration(
-            {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
-        ),
+        rtc_configuration=rtc_config,
         media_stream_constraints={"video": True, "audio": False},
         async_processing=True,
     )
