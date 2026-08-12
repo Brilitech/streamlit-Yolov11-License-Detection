@@ -1,8 +1,10 @@
 opencv-python-headless==4.8.1.78
-ultralytics
-easyocr
-streamlit
-streamlit-webrtc
-av
-torch
-torchvision
+ultralytics==8.0.196
+easyocr==1.7.0
+streamlit==1.28.0
+streamlit-webrtc==0.45.1
+av==10.0.0
+torch==2.0.1
+torchvision==0.15.2
+numpy==1.24.3
+Pillow==10.0.0
