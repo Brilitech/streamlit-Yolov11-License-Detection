@@ -154,9 +154,13 @@ elif option == "🎥 Upload Video":
 
                 for codec_str, ext in codecs:
                     try:
-                        fourcc = cv2.VideoWriter_fourcc(*codec_str)
-                        temp_out = tempfile.NamedTemporaryFile(delete=False, suffix=f".{ext}").name
-                        test_writer = cv2.VideoWriter(temp_out, fourcc, fps, (width, height))
+                        #fourcc = cv2.VideoWriter_fourcc(*codec_str)
+                        #temp_out = tempfile.NamedTemporaryFile(delete=False, suffix=f".{ext}").name
+                        #test_writer = cv2.VideoWriter(temp_out, fourcc, fps, (width, height))
+                        fourcc = cv2.VideoWriter_fourcc(*'VP80')
+                        out_path = tempfile.NamedTemporaryFile(delete=False, suffix=".webm").name
+                        out = cv2.VideoWriter(out_path, fourcc, fps, (width, height))
+                       
                         if test_writer.isOpened():
                             writer = test_writer
                             out_path = temp_out
