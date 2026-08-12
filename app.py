@@ -95,7 +95,7 @@ def detect_plate(image_np):
 st.sidebar.header("📥 Sumber Input")
 option = st.sidebar.radio(
     "Pilih metode input:",
-    ["📷 Upload Gambar", "🎥 Upload Video", "📹 Webcam"]
+    ["📷 Upload Gambar", "🎥 Upload Video" ] #, "📹 Webcam"]
 )
 
 # ------------------------------
@@ -131,7 +131,6 @@ elif option == "🎥 Upload Video":
     uploaded_video = st.file_uploader("Pilih file video (mp4, avi, mov)", type=["mp4", "avi", "mov"])
 
     if uploaded_video is not None:
-        # Simpan video input ke file sementara
         tfile = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
         tfile.write(uploaded_video.read())
         tfile.close()
@@ -146,25 +145,28 @@ elif option == "🎥 Upload Video":
                 height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
                 fps = cap.get(cv2.CAP_PROP_FPS) or 30
 
-                # Coba beberapa kodek secara berurutan
-                codecs = [('mp4v', 'mp4'), ('avc1', 'mp4'), ('X264', 'mp4'), ('XVID', 'avi')]
-                out_path = None
+                # Daftar codec yang didukung browser (prioritas VP8/VP9)
+                codecs_to_try = [
+                    ('VP80', 'webm'),   # VP8
+                    ('VP90', 'webm'),   # VP9
+                    ('mp4v', 'mp4'),    # fallback
+                ]
+                
                 writer = None
+                out_path = None
                 used_codec = None
+                file_ext = 'mp4'
 
-                for codec_str, ext in codecs:
+                for codec_str, ext in codecs_to_try:
                     try:
-                        #fourcc = cv2.VideoWriter_fourcc(*codec_str)
-                        #temp_out = tempfile.NamedTemporaryFile(delete=False, suffix=f".{ext}").name
-                        #test_writer = cv2.VideoWriter(temp_out, fourcc, fps, (width, height))
-                        fourcc = cv2.VideoWriter_fourcc(*'VP80')
-                        out_path = tempfile.NamedTemporaryFile(delete=False, suffix=".webm").name
-                        out = cv2.VideoWriter(out_path, fourcc, fps, (width, height))
-                       
+                        fourcc = cv2.VideoWriter_fourcc(*codec_str)
+                        temp_out = tempfile.NamedTemporaryFile(delete=False, suffix=f".{ext}").name
+                        test_writer = cv2.VideoWriter(temp_out, fourcc, fps, (width, height))
                         if test_writer.isOpened():
                             writer = test_writer
                             out_path = temp_out
                             used_codec = codec_str
+                            file_ext = ext
                             break
                         else:
                             test_writer.release()
@@ -173,7 +175,7 @@ elif option == "🎥 Upload Video":
                         continue
 
                 if writer is None:
-                    st.error("Tidak ada kodek video yang didukung di sistem ini. Coba instal codec H.264.")
+                    st.error("Tidak ada codec yang didukung di sistem. Coba gunakan local dengan FFmpeg.")
                 else:
                     frame_count = 0
                     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or 100
@@ -192,32 +194,28 @@ elif option == "🎥 Upload Video":
                     writer.release()
                     progress_bar.empty()
 
-                    # Validasi ukuran file hasil
-                    file_size = os.path.getsize(out_path)
-                    if file_size < 1024:  # kurang dari 1KB
-                        st.warning("⚠️ File hasil deteksi sangat kecil, kemungkinan terjadi kesalahan penulisan.")
-                    else:
-                        st.success(f"✅ Proses selesai! Video disimpan dengan kodek {used_codec}.")
-
-                    # Baca file ke bytes
+                    # Baca file hasil
                     with open(out_path, "rb") as f:
                         video_bytes = f.read()
 
-                    # Tampilkan video (jika browser support)
-                    try:
-                        st.video(video_bytes)
-                    except Exception as e:
-                        st.warning(f"Browser tidak dapat memutar video ini, tetapi Anda tetap bisa mengunduhnya. Error: {e}")
+                    # Tampilkan informasi codec yang digunakan
+                    if file_ext == 'webm':
+                        st.success(f"✅ Video berhasil diproses dengan codec {used_codec} (WebM) – siap diputar di browser.")
+                    else:
+                        st.warning(f"⚠️ Video diproses dengan codec {used_codec} (MP4). Mungkin tidak bisa diputar langsung di browser, tapi bisa diunduh.")
+
+                    # Tampilkan video (otomatis mendeteksi format)
+                    st.video(video_bytes)
 
                     # Tombol download
                     st.download_button(
                         label="📥 Download Video Hasil Deteksi",
                         data=video_bytes,
-                        file_name="hasil_deteksi.mp4",
-                        mime="video/mp4"
+                        file_name=f"hasil_deteksi.{file_ext}",
+                        mime=f"video/{file_ext}"
                     )
 
-                    # Hapus semua file sementara
+                    # Hapus file sementara
                     os.unlink(video_path)
                     os.unlink(out_path)
 
@@ -272,7 +270,7 @@ st.markdown(
     """
     <hr>
     <div style='text-align: center; color: gray;'>
-        Dibuat dengan ❤️ oleh <b>SMK Muhammadiyah Kudus</b> | Teknik Komputer dan Jaringan
+        Dibuat dengan ❤️ oleh <b>Brilitech untuk SMK Muhammadiyah Kudus</b> | Koding dan Kecerdasan Artifisial
     </div>
     """,
     unsafe_allow_html=True
